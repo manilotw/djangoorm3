@@ -1,16 +1,23 @@
-from datacenter.models import *
+from datacenter.models import Mark, Schoolkid, Chastisement, Commendation, Lesson
 import random
 
 
+def get_schoolkid(kid):
+    try:
+        return Schoolkid.objects.get(full_name__contains=kid)
+    except Schoolkid.DoesNotExist:
+        print(f"Ученик с именем '{kid}' не найден.")
+    except Schoolkid.MultipleObjectsReturned:
+        print(f"Найдено несколько учеников с именем '{kid}'.")
+    return None
+
+
 def fix_marks(schoolkid):
-    schoolkid = Mark.objects.get(schoolkid=schoolkid)
-    for point in schoolkid:
-        point.points = 5
-        point.save()
+    Mark.objects.filter(schoolkid=schoolkid).update(points=5)
 
 
 def remove_chastisements(schoolkid):
-    Chastisement.objects.get(schoolkid=schoolkid).delete()
+    Chastisement.objects.filter(schoolkid=schoolkid).delete()
 
 
 def create_commendation(kid, schoolsubject):
@@ -27,29 +34,24 @@ def create_commendation(kid, schoolsubject):
         'Сказано здорово – просто и ясно!'
     ]
 
-    commendation = random.choice(commendation_texts)
+    child = get_schoolkid(kid)
+    if not child:
+        return
 
-    lesson = Lesson.objects.filter(
-        year_of_study=6,
-        group_letter__contains='А',
+    lessons = Lesson.objects.filter(
+        year_of_study=child.year_of_study,
+        group_letter=child.group_letter,
         subject__title__contains=schoolsubject
-    ).first()
+    ).order_by('-date')
+
+    lesson = random.choice(lessons)
 
     if not lesson:
         print(f"Урок по предмету '{schoolsubject}' не найден.")
         return
 
-    try:
-        child = Schoolkid.objects.get(full_name__contains=kid)
-    except Schoolkid.DoesNotExist:
-        print(f"Ученик с именем '{kid}' не найден.")
-        return
-    except Schoolkid.MultipleObjectsReturned:
-        print(f"Найдено несколько учеников с именем '{kid}'.")
-        return
-
     Commendation.objects.create(
-        text=commendation,
+        text=random.choice(commendation_texts),
         created=lesson.date,
         schoolkid=child,
         subject=lesson.subject,
